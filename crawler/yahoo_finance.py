@@ -20,7 +20,7 @@ import random
 import json
 
 # Credit: https://github.com/c0redumb/yahoo_quote_download/blob/master/yahoo_quote_download/yqd.py
-from yqd import load_yahoo_quote
+from yahoo_quote_download.yqd import load_yahoo_quote
 
 
 def calc_finished_ticker():

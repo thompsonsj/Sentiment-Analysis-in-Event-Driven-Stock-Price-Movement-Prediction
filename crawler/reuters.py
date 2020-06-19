@@ -8,7 +8,8 @@ import os
 import sys
 import time
 import datetime
-
+import dateparser
+from pprint import pprint
 # import util from parent directory
 # credit: https://stackoverflow.com/a/11158224/4246348
 import inspect
@@ -49,14 +50,21 @@ class ReutersCrawler(object):
         ticker, name, exchange, market_cap = task
         print("%s - %s - %s - %s" % (ticker, name, exchange, market_cap))
 
-        suffix = {'AMEX': '.A', 'NASDAQ': '.O', 'NYSE': '.N'}
-        # e.g. https://www.reuters.com/finance/stocks/company-news/BIDU.O?date=09262017
-        url = "https://www.reuters.com/finance/stocks/company-news/" + ticker + suffix[exchange]
+        suffix = {'AMEX': '.A', 'NASDAQ': '.O', 'NYSE': '.N', 'LSE': '.L', 'PSE': '.PA'}
+        # e.g. https://www.reuters.com/companies/BIDU.O/news
+        # legacy e.g. https://www.reuters.com/finance/stocks/company-news/BIDU.O?date=09262017
+        url = "https://www.reuters.com/companies/" + ticker + suffix[exchange] + "/news"
         
+        ticker = ticker + suffix[exchange]
+        if ticker == 'ACCP.PA':
+            ticker = 'AC.PA'
+
         ticker_failed = open(self.failed_reuters_filename, 'a+')
         today = datetime.datetime.today().strftime("%Y%m%d")
 
         news_num = self.get_news_num_whenever(url)
+        print('news num %d for %s' % (news_num, url))
+        #quit()
         if news_num:
             # this company has news, then fetch for N consecutive days in the past
             has_content, no_news_days = self.fetch_within_date_range(news_num, url, date_range, task, ticker)
@@ -78,10 +86,10 @@ class ReutersCrawler(object):
         # return the number of news
         soup = util.get_soup_with_repeat(url, repeat_times=4)
         if soup:
-            return len(soup.find_all("div", {'class': ['topStory', 'feature']}))
+            return len(soup.find_all("div", {'class': ['item']}))
         return 0
 
-    def fetch_within_date_range(self, news_num, url, date_range, task, ticker):
+    def fetch_within_date_range(self, news_num: int, url: str, date_range: list, task: tuple, ticker: str):
         # if it doesn't have a single news for X consecutive days, stop iterating dates
         # set this ticker into the second-lowest priority list
         missing_days = 0
@@ -109,13 +117,18 @@ class ReutersCrawler(object):
         return has_content, no_news_days
 
     def parse_and_save_news(self, soup, task, ticker, timestamp):
-        content = soup.find_all("div", {'class': ['topStory', 'feature']})
+        content = soup.find_all("div", {'class': ['item']})
         if not content:
             return False
         with open(self.news_filename, 'a+', newline='\n') as fout:
             for i in range(len(content)):
-                title = content[i].h2.get_text().replace(",", " ").replace("\n", " ")
+                title = content[i].a.get_text().replace(",", " ").replace("\n", " ")
                 body = content[i].p.get_text().replace(",", " ").replace("\n", " ")
+                # Get article post date
+                url = content[i].a['href']
+                article_soup = util.get_soup_with_repeat(url)
+                post_date = article_soup.find(
+                    "div", {'class': ['ArticleHeader_date']}).get_text().replace(",", " ").replace("\n", " ").split(' / ')[0]
 
                 if i == 0 and soup.find_all("div", class_="topStory"):
                     news_type = 'topStory'
@@ -124,7 +137,7 @@ class ReutersCrawler(object):
 
                 print(ticker, timestamp, title, news_type)
                 # fout.write(','.join([ticker, task[1], timestamp, title, body, news_type]).encode('utf-8') + '\n')
-                fout.write(','.join([ticker, task[1], timestamp, title, body, news_type])+ '\n')
+                fout.write(','.join([ticker, task[1], dateparser.parse(post_date).strftime('%Y%m%d'), title, body, news_type])+ '\n')
         return True
 
     def run(self, numdays=1000):
@@ -139,12 +152,12 @@ class ReutersCrawler(object):
             for line in ticker_list:  # iterate all possible tickers
                 task = tuple(line.strip().split(','))
                 ticker, name, exchange, market_cap = task
-                if ticker in finished_tickers:
-                    continue
-                if ticker in failed_tickers:
-                    priority = failed_tickers[ticker]
-                    delayed_tasks[priority].add(task)
-                    continue
+                #if ticker in finished_tickers:
+                #    continue
+                #if ticker in failed_tickers:
+                #    delayed_tasks[priority].add(task)
+                #    priority = failed_tickers[ticker]
+                #    continue
                 self.fetch_content(task, date_range)
 
         # run task with low priority

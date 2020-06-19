@@ -20,6 +20,8 @@ import torch.autograd as autograd
 import torch.nn as nn
 import torch.nn.functional as F
 
+from bs4 import BeautifulSoup
+
 # training with SGLD with annealing and save models
 def train(X_train, y_train, X_valid, y_valid, X_test, y_test, model, args):
     model.train()

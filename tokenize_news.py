@@ -44,7 +44,7 @@ def tokenize(news_file, price_file, stopWords_file, output, output_wd2idx, sen_l
     current_idx = 2
     word_idx_count = {0: float('inf'), 1: float('inf')}
     sentences, labels = [], []
-    os.system('cat ./input/news/*/* > ./input/news_reuters.csv')
+    #os.system('cat ./input/news/*/* > ./input/news_reuters.csv')
     with open(news_file) as f:
         for num, line in enumerate(f):
             line = line.strip().split(',')
@@ -54,12 +54,14 @@ def tokenize(news_file, price_file, stopWords_file, output, output_wd2idx, sen_l
                 ticker, name, day, headline, body, newsType = line
             else:
                 ticker, name, day, headline, body, newsType, suggestion = line
-            if newsType != 'topStory': # newsType: [topStory, normal]
-                continue # skip normal news
+            #if newsType != 'topStory': # newsType: [topStory, normal]
+            #    continue # skip normal news
             
             if ticker not in priceDt: 
+                print('%s not in priceDt' % ticker)
                 continue # skip if no corresponding company found
             if day not in priceDt[ticker]: 
+                print('%s not in priceDt[ticker]' % day)
                 continue # skip if no corresponding date found
 
             if num % 10000 == 0: 
