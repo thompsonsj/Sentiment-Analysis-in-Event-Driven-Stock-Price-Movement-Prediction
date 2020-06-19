@@ -8,7 +8,8 @@ import os
 import sys
 import time
 import datetime
-
+import dateparser
+from pprint import pprint
 # import util from parent directory
 # credit: https://stackoverflow.com/a/11158224/4246348
 import inspect
@@ -54,6 +55,10 @@ class ReutersCrawler(object):
         # legacy e.g. https://www.reuters.com/finance/stocks/company-news/BIDU.O?date=09262017
         url = "https://www.reuters.com/companies/" + ticker + suffix[exchange] + "/news"
         
+        ticker = ticker + suffix[exchange]
+        if ticker == 'ACCP.PA':
+            ticker = 'AC.PA'
+
         ticker_failed = open(self.failed_reuters_filename, 'a+')
         today = datetime.datetime.today().strftime("%Y%m%d")
 
@@ -119,6 +124,11 @@ class ReutersCrawler(object):
             for i in range(len(content)):
                 title = content[i].a.get_text().replace(",", " ").replace("\n", " ")
                 body = content[i].p.get_text().replace(",", " ").replace("\n", " ")
+                # Get article post date
+                url = content[i].a['href']
+                article_soup = util.get_soup_with_repeat(url)
+                post_date = article_soup.find(
+                    "div", {'class': ['ArticleHeader_date']}).get_text().replace(",", " ").replace("\n", " ").split(' / ')[0]
 
                 if i == 0 and soup.find_all("div", class_="topStory"):
                     news_type = 'topStory'
@@ -127,7 +137,7 @@ class ReutersCrawler(object):
 
                 print(ticker, timestamp, title, news_type)
                 # fout.write(','.join([ticker, task[1], timestamp, title, body, news_type]).encode('utf-8') + '\n')
-                fout.write(','.join([ticker, task[1], timestamp, title, body, news_type])+ '\n')
+                fout.write(','.join([ticker, task[1], dateparser.parse(post_date).strftime('%Y%m%d'), title, body, news_type])+ '\n')
         return True
 
     def run(self, numdays=1000):
